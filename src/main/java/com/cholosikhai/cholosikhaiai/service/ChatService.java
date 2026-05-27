@@ -6,9 +6,14 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
+import org.springframework.ai.rag.generation.augmentation.ContextualQueryAugmenter;
+import org.springframework.ai.rag.preretrieval.query.expansion.MultiQueryExpander;
 import org.springframework.ai.rag.preretrieval.query.transformation.RewriteQueryTransformer;
 import org.springframework.ai.rag.preretrieval.query.transformation.TranslationQueryTransformer;
 import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
+import org.springframework.ai.reader.tika.TikaDocumentReader;
+import org.springframework.ai.transformer.splitter.TextSplitter;
+import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +29,10 @@ public class ChatService {
 
     @Value("classpath:/prompts/lesson-system.st")
     Resource systemPrompt;
+
+    @Value("classpath:/prompts/flutter.pdf")
+    Resource flutterRoadMap;
+
     private final ChatClient chatClient;
     private VectorStore vectorStore;
 
@@ -33,20 +42,23 @@ public class ChatService {
     }
 
     public void saveInVDB(){
-        List<String> list = List.of(
-                "This Lesson talked about Spring Boot",
-                "Introduction to Spring",
-                "Spring/Spring Boot is Java a framework",
-                "Spring has lots of project like- Spring AI, Spring Security, Spring Data, Spring Cloud etc",
-                "Sping boot mostly use on Enterprise level application"
-        );
-        List<Document> documentList = list.stream().map(Document::new).toList();
-        vectorStore.accept(documentList);
+
+        TikaDocumentReader tikaDocumentReader = new TikaDocumentReader(flutterRoadMap);
+
+        TextSplitter textSplitter = new TokenTextSplitter();
+        List<Document> list = textSplitter.split(tikaDocumentReader.read());
+        vectorStore.accept(list);
+
+//        List<String> list = List.of("");
+//        List<Document> documentList = list.stream().map(Document::new).toList();
+//        vectorStore.accept(documentList);
     }
 
 
 
     public String getResponse(String userQuery) {
+
+//        saveInVDB();
 
         var qaAdvisor = QuestionAnswerAdvisor.builder(vectorStore)
                 .searchRequest(SearchRequest.builder().similarityThreshold(0.1).topK(3).build())
@@ -63,7 +75,22 @@ public class ChatService {
                                 .targetLanguage("Bangla")
                                 .build()
                 )
-                .documentRetriever(VectorStoreDocumentRetriever.builder().similarityThreshold(0.1).topK(3).vectorStore(vectorStore).build())
+                .queryExpander(
+                        MultiQueryExpander.builder()
+                                .chatClientBuilder(chatClient.mutate().clone())
+                                .numberOfQueries(2)
+                                .build()
+                )
+                .documentRetriever(
+                        VectorStoreDocumentRetriever.builder()
+                                .similarityThreshold(0.1)
+                                .topK(3)
+                                .vectorStore(vectorStore)
+                                .build()
+                )
+                .queryAugmenter(
+                        ContextualQueryAugmenter.builder().build()
+                )
                 .build();
 
         return chatClient
