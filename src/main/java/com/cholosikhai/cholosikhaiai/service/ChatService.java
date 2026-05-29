@@ -19,6 +19,7 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 
@@ -43,20 +44,23 @@ public class ChatService {
 
     public void saveInVDB(){
 
-        TikaDocumentReader tikaDocumentReader = new TikaDocumentReader(flutterRoadMap);
+//        TikaDocumentReader tikaDocumentReader = new TikaDocumentReader(flutterRoadMap);
+//
+//        TextSplitter textSplitter = new TokenTextSplitter();
+//        List<Document> list = textSplitter.split(tikaDocumentReader.read());
+//        vectorStore.accept(list);
 
-        TextSplitter textSplitter = new TokenTextSplitter();
-        List<Document> list = textSplitter.split(tikaDocumentReader.read());
-        vectorStore.accept(list);
 
-//        List<String> list = List.of("");
+//        List<String> list = List.of(
+//
+//        );
 //        List<Document> documentList = list.stream().map(Document::new).toList();
 //        vectorStore.accept(documentList);
     }
 
 
 
-    public String getResponse(String userQuery) {
+    public Flux<String> getResponse(String userQuery) {
 
 //        saveInVDB();
 
@@ -98,7 +102,7 @@ public class ChatService {
                 .advisors(ragAdvisor)
                 .user(userQuery)
                 .system(s -> s.text(systemPrompt))
-                .call()
+                .stream()
                 .content();
     }
 }

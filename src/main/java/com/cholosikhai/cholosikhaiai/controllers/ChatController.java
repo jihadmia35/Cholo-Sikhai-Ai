@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Flux;
 
 @RestController
 public class ChatController {
@@ -17,9 +18,9 @@ public class ChatController {
     }
 
     @PostMapping("/chat")
-    public ResponseEntity<?> chat(@RequestParam String query) {
-        String response = chatService.getResponse(query);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<Flux<String>> chat(@RequestParam String query) {
+
+        return ResponseEntity.ok(chatService.getResponse(query));
     }
 
 }
